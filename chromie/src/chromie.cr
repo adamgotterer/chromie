@@ -1,39 +1,33 @@
-require "http/server"
+require "http/web_socket"
+require "kemal"
+require "logger"
 
 require "./chromie/*"
 
 module Chromie
+  extend self
   SOCKETS = [] of HTTP::WebSocket
 
-  handler = HTTP::WebSocketHandler.new do |socket|
-
-    socket.on_message do |str|
-      puts str
-      socket.send("pong")
-
-      sleep 1
+  ws "/" do |socket|
+    begin
+      chrome_process = ChromeProcess.new(port: 9222)
+    rescue Timeout
+      msg = "Chrome process failed to start"
+      logger.warn(msg)
+      socket.close(msg)
+      next
     end
 
-    socket.on_close do |str| # <===== Not called if the client unexpectedly hangs up
-      puts "closed"
-      puts str
+    chrome_socket = HTTP::WebSocket.new(URI.parse(chrome_process.websocket_debugger_url))
+    chrome_proxy = WebSocketProxyHandler.new("Chrome", socket: chrome_socket, proxy_socket: socket) do |msg|
+     chrome_process.kill
     end
+    spawn { chrome_proxy.run }
 
-    spawn do
-      loop do
-        begin
-          socket.pong
-        rescue Errno | IO::Error
-          puts "disconnected"
-          break
-        end
-        sleep 2
-      end
-    end
+    upstream_proxy = WebSocketProxyHandler.new("Everyurl", socket: socket, proxy_socket: chrome_socket)
+    upstream_proxy.start_socket_monitor
   end
 
-  server = HTTP::Server.new(handler)
-
   puts "Listening on http://0.0.0.0:9333"
-  server.listen("0.0.0.0", 9333)
+  Kemal.run(port: 9333)
 end
