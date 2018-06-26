@@ -19,7 +19,7 @@ client.on_message do |str|
   sleep 1
 end
 
-client.on_close do |str| # <==== Is called if the server unexpectedly hangs up
+client.on_close do |str| 
   puts "disconnected"
 end
 client.run
