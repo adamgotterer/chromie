@@ -1,4 +1,4 @@
-class Timeout < Exception
+class TimeoutError < Exception
 end
 
 def timeout(timeout : Int8 | Int16 | Int32)
@@ -9,7 +9,7 @@ def timeout(timeout : Int8 | Int16 | Int32)
   	ticks += 1
 	end
 
-  raise Timeout.new("Timed out after #{timeout} seconds")
+  raise TimeoutError.new("Timed out after #{timeout} seconds")
 end
 
 def logger
