@@ -32,6 +32,10 @@ RUN useradd headless --shell /bin/bash --create-home \
 RUN mkdir /data \
     && chown -R headless:headless /data
 
+ENV TINI_VERSION v0.18.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+
 USER headless
 
 ENV SHELL /bin/sh
@@ -40,4 +44,5 @@ ENV LC_ALL C.UTF-8
 
 WORKDIR /app
 
-CMD ["crystal", "run", "src/chromie.cr"]
+#ENTRYPOINT ["/tini", "--"]
+CMD ["crystal", "run", "run.cr"]

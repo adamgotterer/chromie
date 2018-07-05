@@ -1,11 +1,12 @@
 require "http/client"
+require "json"
 
 module Chromie
   class ChromeProcess
     getter process, websocket_debugger_url, protocol_version, browser,
       port, output, pgid, logger
 
-    @@active_ports = Array(Int32).new
+    PROCESS_START_TIMEOUT = 10
 
     @port : Int32 = 0
     @process : Process
@@ -18,21 +19,8 @@ module Chromie
     delegate :terminated?, to: @process
     delegate :pid, to: @process
 
-    PROCESS_START_TIMEOUT = 10
-
-    def initialize(port_range : Range, @logger : Logger)
-      Mutex.new.synchronize do
-	available_port = ChromeProcess.next_available_port(port_range) || 0
-
-	if available_port > 0
-	  @port = available_port
-	  ChromeProcess.register_port(port)
-	else
-	  raise ChromeProcessError.new("No available port to bind on")
-	end
-      end
-
-      @process = launch_process
+    def initialize(@port : Int32, @logger : Logger = Chromie.config.logger)
+      @process = launch
       @pgid = get_pgid
 
       data = fetch_version_data
@@ -41,12 +29,12 @@ module Chromie
       @websocket_debugger_url = data["webSocketDebuggerUrl"]
     end
 
-    def launch_process
+    def launch
       logger.debug "Launching chrome process on port #{port}"
-      
+
       default_args = Array{
 	"--remote-debugging-port=#{port}",
-	"--headless ",
+	"--headless",
 	"--no-sandbox",
 	"--mute-audio",
 	"--incognito",
@@ -78,9 +66,8 @@ module Chromie
       process = Process.new(cmd, shell: true, output: output, error: output)
 
       timeout(PROCESS_START_TIMEOUT) do
-        break if output.to_s.includes?("DevTools listening on")
+	break if output.to_s.includes?("DevTools listening on")
       rescue ex
-	ChromeProcess.unregister_port(@port)
 	raise ChromeProcessError.new "Timed out while trying to launch a Chrome instance"
       end
 
@@ -100,13 +87,14 @@ module Chromie
     #  on when we kill the processes we kill the parent id and then the group id.
     protected def get_pgid
       pgid_output = IO::Memory.new
+      id = 0
       Process.run("pgrep -P #{process.pid}", shell: true, output: pgid_output)
+
       id = pgid_output.to_s.to_i16
       if id > 0
 	logger.debug "Found chrome subprocess PGID #{id} for PID #{process.pid}"
 	return id
       else
-	kill
 	raise ChromeProcessError.new "Subprocess PGID not found"
       end
     end
@@ -130,25 +118,7 @@ module Chromie
       #Process.run("kill #{pgid}", shell: true)
       # Process.kill(Signal::TERM, pgid)
 
-      Mutex.new.synchronize { ChromeProcess.unregister_port(port) }
-    end
-
-    def self.register_port(port : Int32)
-      logger.debug "Registering port #{port}"
-      @@active_ports << port
-    end
-
-    def self.unregister_port(port : Int32)
-      logger.debug "Freeing port #{port}"
-      @@active_ports.delete(port)
-    end
-
-    def self.active_ports
-      @@active_ports
-    end
-
-    def self.next_available_port(options : Range)
-      options.find { |x| !@@active_ports.includes?(x) }
+      ChromeProcessManager.unregister(self)
     end
   end
 end

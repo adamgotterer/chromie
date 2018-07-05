@@ -4,10 +4,10 @@ end
 def timeout(timeout : Int8 | Int16 | Int32)
   ticks = 0
   while ticks < timeout
-	  yield
+    yield
     sleep 1
-  	ticks += 1
-	end
+    ticks += 1
+  end
 
   raise TimeoutError.new("Timed out after #{timeout} seconds")
 end
