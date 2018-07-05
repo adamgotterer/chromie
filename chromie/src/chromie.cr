@@ -1,125 +1,73 @@
-#require "http/web_socket"
 require "http"
-require "kemal"
 require "logger"
 
 require "./chromie/*"
 
 module Chromie
-  extend self
   unless ENV.has_key?("CHROMIE_CHROME_PORT_START") && ENV.has_key?("CHROMIE_CHROME_PORT_END")
-    raise KeyError.new("CHROMIE_CHROME_PORT_START and CHROMIE_CHROME_PORT_END must be set")
+    ENV["CHROMIE_CHROME_PORT_START"] = "9222"
+    ENV["CHROMIE_CHROME_PORT_END"] = "9322"
+    logger.warn "CHROMIE_CHROME_PORT_START and CHROMIE_CHROME_PORT_END aren't 
+      set, using default ports 9222-9322"
   end
 
-
-  class WebSocketHandler
-    getter context
-    def initialize(@context, &proc : WebSocket, Server::Context ->)
-      handler.call(&proc)
-    end
-  end
-
-  #ws "/" do |socket|
-  #handler = HTTP::WebSocketHandler.new do |socket|
-  handler = HTTP::WebSocketHandler.new do |socket, context|
-    puts context
-    id = context.request.resource.gsub("/?", "")
-    logger = Logger.new(STDOUT)
-    logger.level = Logger::DEBUG
-    logger.formatter = ::Logger::Formatter.new do |severity, datetime, progname, message, io|
-      io << "#{id}: #{message}"
+  class WebSocketHandler < HTTP::WebSocketHandler
+    def initialize
+      super do |socket, context|
+        handler(socket, context)
+      end
     end
 
-    begin
-      port_range = ENV["CHROMIE_CHROME_PORT_START"].to_i..ENV["CHROMIE_CHROME_PORT_END"].to_i
-      chrome_process = ChromeProcess.new(port_range, logger)
-    rescue ex : ChromeProcessError
-      logger.warn(ex.message)
-      socket.close("Chrome process failed to start")
-      next
-    end
-            
-    #begin
-      chrome_socket = HTTP::WebSocket.new(URI.parse(chrome_process.websocket_debugger_url))
-      chrome_socket.on_message do |msg|
-        socket.send(msg) unless socket.closed?
+    def handler(upstream_socket : HTTP::WebSocket, context : HTTP::Server::Context)
+      puts context
+      id = context.request.resource.gsub("/?", "")
+      logger = Chromie.config.logger.dup
+      logger.formatter = ::Logger::Formatter.new do |severity, datetime, progname, message, io|
+        io << "#{id}: #{message}"
       end
 
-      chrome_socket.on_close do |msg|
-        logger.debug "chrome_socket#on_close"
-        socket.close("closed") unless socket.closed?
-        delay(5) { chrome_process.kill }
+      begin
+        port_range = ENV["CHROMIE_CHROME_PORT_START"].to_i..ENV["CHROMIE_CHROME_PORT_END"].to_i
+        chrome_proxy = ChromeProxy.new(upstream_socket, port_range)
+      rescue ex : ChromeProcessError
+        logger.warn(ex.message)
+        upstream_socket.close("Chrome process failed to start")
+        return false
       end
 
-      spawn do
-        begin
-          chrome_socket.run
-        rescue
-          logger.debug "Error in RUN"
-          socket.close("closed") unless socket.closed?
-          chrome_socket.close("closed") unless chrome_socket.closed?
-          spawn do
-            sleep 5
-            chrome_process.kill
-          end
-        end
-      end
-
-      socket.on_message do |msg|
-        if msg.includes?(%("method":"Browser.close"))
-          logger.debug "Intercepted Browser.close, calling socket.close"
-          socket.close("closed")
-          chrome_socket.close("closed")
-        else
+      upstream_proxy = UpstreamProxy.new(socket: upstream_socket, chrome_socket: chrome_proxy.socket)
+              
+      #begin
+        spawn do
           begin
-            chrome_socket.send(msg) unless chrome_socket.closed?
-          rescue ex
-            logger.debug(ex.message)
-            chrome_socket.close("closed") unless chrome_socket.closed?
-            socket.close("closed") unless socket.closed?
-            spawn do
-              sleep 5
-              chrome_process.kill
-            end
-            next
+            chrome_proxy.run
+          rescue Errno | IO::Error
+            logger.debug "Error in RUN"
+            upstream_proxy.close("closed") unless upstream_proxy.closed?
+            chrome_proxy.close("closed") unless chrome_proxy.closed?
+            chrome_proxy.kill
           end
         end
-      end
+        # chrome_proxy = WebSocketProxyHandler.new("Chrome", socket: chrome_socket, proxy_socket: socket, logger: logger) do |msg|
+        #   chrome_process.kill
+        # end
+        # chrome_proxy.run
+        # chrome_proxy.start_socket_timer
 
-      socket.on_close do |msg|
-        logger.debug "socket#on_close"
-
-        begin
-          chrome_socket.close("closed") unless chrome_socket.closed?
-        rescue ex
-          logger.debug(ex.message)
-          chrome_socket.close("closed") unless chrome_socket.closed?
-          socket.close("closed") unless socket.closed?
-          spawn do
-            sleep 5
-            chrome_process.kill
-          end
-          next
-        end
-      end
-
-      # chrome_proxy = WebSocketProxyHandler.new("Chrome", socket: chrome_socket, proxy_socket: socket, logger: logger) do |msg|
-      #   chrome_process.kill
-      # end
-      # chrome_proxy.run
-      # chrome_proxy.start_socket_timer
-
-      # upstream_proxy = WebSocketProxyHandler.new("Everyurl", socket: socket, proxy_socket: chrome_socket, logger: logger)
-      # upstream_proxy.start_socket_heartbeat
-      # upstream_proxy.start_socket_timer
-    #rescue ex
-    #  chrome_process.kill
-    #  raise ex
-    #end
+        # upstream_proxy = WebSocketProxyHandler.new("Everyurl", socket: socket, proxy_socket: chrome_socket, logger: logger)
+        # upstream_proxy.start_socket_heartbeat
+        # upstream_proxy.start_socket_timer
+      #rescue ex
+      #  chrome_process.kill
+      #  raise ex
+      #end
+    end
   end
 
-  # Kemal.run(port: 9333)
-  server = HTTP::Server.new(handler)
-  puts "Listening on http://0.0.0.0:9333"
-  server.listen("0.0.0.0", 9333)
+  def self.run
+    port = ENV.fetch("CHROMIE_PORT", "9333")
+    server = HTTP::Server.new(WebSocketHandler.new)
+    puts "Listening on http://0.0.0.0:#{port}"
+    server.listen("0.0.0.0", port.to_i32)
+  end
 end
