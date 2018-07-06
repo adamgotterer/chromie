@@ -64,9 +64,9 @@ module Chromie
       process = Process.new(cmd, shell: true, output: output, error: output)
 
       timeout(PROCESS_START_TIMEOUT) do
-  break if output.to_s.includes?("DevTools listening on")
+        break if output.to_s.includes?("DevTools listening on")
       rescue ex
-  raise ChromeProcessError.new "Timed out while trying to launch a Chrome instance"
+        raise ChromeProcessError.new "Timed out while trying to launch a Chrome instance"
       end
 
       logger.debug "Launched chrome process with PID #{process.pid}"
@@ -90,10 +90,10 @@ module Chromie
 
       id = pgid_output.to_s.to_i16
       if id > 0
-  logger.debug "Found chrome subprocess PGID #{id} for PID #{process.pid}"
-  return id
+        logger.debug "Found chrome subprocess PGID #{id} for PID #{process.pid}"
+        return id
       else
-  raise ChromeProcessError.new "Subprocess PGID not found"
+        raise ChromeProcessError.new "Subprocess PGID not found"
       end
     end
 
