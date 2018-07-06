@@ -4,7 +4,7 @@ require "json"
 module Chromie
   class ChromeProcess
     getter process, websocket_debugger_url, protocol_version, browser,
-      port, output, pgid, logger
+      port, output, pgid
 
     PROCESS_START_TIMEOUT = 10
 
@@ -19,7 +19,7 @@ module Chromie
     delegate :terminated?, to: @process
     delegate :pid, to: @process
 
-    def initialize(@port : Int32, @logger : Logger = Chromie.config.logger)
+    def initialize(@port : Int32)
       @process = launch
       @pgid = get_pgid
 
