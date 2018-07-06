@@ -6,11 +6,11 @@ module Chromie
 
     def on_message(msg)
       if msg.includes?(%("method":"Browser.close"))
-	logger.debug "Intercepted Browser.close, calling socket.close"
-	socket.close("closed")
-	chrome_socket.close("closed")
+        logger.debug "Intercepted Browser.close, calling socket.close"
+        socket.close("closed")
+        chrome_socket.close("closed")
       else
-	super msg
+        super msg
       end
     end
   end
