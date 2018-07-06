@@ -5,9 +5,6 @@ module Chromie
     # Minutes to sleep before timeing out the socker
     SOCKET_TIMEOUT = ENV.fetch("SOCKET_TIMEOUT", "5").to_i * 60
 
-    MAX_HEARTBEAT_FAILURES = 3
-    HEARTBEAT_CHECK_DELAY = 5.seconds
-
     @socket : HTTP::WebSocket
     @upstream_socket : HTTP::WebSocket
 
