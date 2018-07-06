@@ -22,23 +22,23 @@ module Chromie
     #  and will kill the socket if the SOCKET_TIMEOUT has been exceeded
     def start_socket_timeout
       spawn do
-	timeout(SOCKET_TIMEOUT) do
-	  break if closed?
-	end
+        timeout(SOCKET_TIMEOUT) do
+          break if closed?
+        end
       rescue ex : TimeoutError
-	logger.debug "Socket timeout of #{SOCKET_TIMEOUT / 60 } min exceeded. Closing socket."
-	socket.close unless socket.closed?
-	upstream_socket.close unless upstream_socket.closed?
-	next
+        logger.debug "Socket timeout of #{SOCKET_TIMEOUT / 60 } min exceeded. Closing socket."
+        socket.close unless socket.closed?
+        upstream_socket.close unless upstream_socket.closed?
+        next
       end
     end
 
     def on_message(msg)
       begin
-	upstream_socket.send(msg) unless upstream_socket.closed?
+        upstream_socket.send(msg) unless upstream_socket.closed?
       rescue ex
-	upstream_socket.close("closed") unless upstream_socket.closed?
-	socket.close("closed") unless socket.closed?
+        upstream_socket.close("closed") unless upstream_socket.closed?
+        socket.close("closed") unless socket.closed?
       end
     end
 

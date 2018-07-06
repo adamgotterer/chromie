@@ -33,40 +33,40 @@ module Chromie
       logger.debug "Launching chrome process on port #{port}"
 
       default_args = Array{
-	"--remote-debugging-port=#{port}",
-	"--headless",
-	"--no-sandbox",
-	"--mute-audio",
-	"--incognito",
-	"--disable-background-timer-throttling",
-	"--disable-breakpad",
-	"--disable-client-side-phishing-detection",
-	"--disable-default-apps",
-	"--disable-dev-shm-usage",
-	"--disable-extensions",
-	"--disable-features=site-per-process",
-	"--disable-hang-monitor",
-	"--disable-popup-blocking",
-	"--disable-prompt-on-repost",
-	"--disable-sync",
-	"--disable-translate",
-	"--metrics-recording-only",
-	"--no-first-run",
-	"--safebrowsing-disable-auto-update"
+        "--remote-debugging-port=#{port}",
+        "--headless",
+        "--no-sandbox",
+        "--mute-audio",
+        "--incognito",
+        "--disable-background-timer-throttling",
+        "--disable-breakpad",
+        "--disable-client-side-phishing-detection",
+        "--disable-default-apps",
+        "--disable-dev-shm-usage",
+        "--disable-extensions",
+        "--disable-features=site-per-process",
+        "--disable-hang-monitor",
+        "--disable-popup-blocking",
+        "--disable-prompt-on-repost",
+        "--disable-sync",
+        "--disable-translate",
+        "--metrics-recording-only",
+        "--no-first-run",
+        "--safebrowsing-disable-auto-update"
       }
 
       cmd = "setsid /usr/bin/google-chrome " + default_args.join(" ")
 
       puts cmd
 
-      # Note: I'm not entirely sure why the Chrome process is writing 
+      # Note: I'm not entirely sure why the Chrome process is writing
       #  the successful server creation to the error stream
       process = Process.new(cmd, shell: true, output: output, error: output)
 
       timeout(PROCESS_START_TIMEOUT) do
-	break if output.to_s.includes?("DevTools listening on")
+  break if output.to_s.includes?("DevTools listening on")
       rescue ex
-	raise ChromeProcessError.new "Timed out while trying to launch a Chrome instance"
+  raise ChromeProcessError.new "Timed out while trying to launch a Chrome instance"
       end
 
       logger.debug "Launched chrome process with PID #{process.pid}"
@@ -74,7 +74,7 @@ module Chromie
     end
 
     # This is a way to more accurately manage Chrome processes. When Chrome launches
-    #  it spawns a buch of sub processes. Because of the Docker PID 1 issue every 
+    #  it spawns a buch of sub processes. Because of the Docker PID 1 issue every
     #  ends up with the same PGID. If you kill the Chrome PID then only the parent
     #  process exits and causes the sub processes to be orphaned. If you kill the PGID
     #  then every running instance of chrome is terminated. Above this code you will
@@ -90,10 +90,10 @@ module Chromie
 
       id = pgid_output.to_s.to_i16
       if id > 0
-	logger.debug "Found chrome subprocess PGID #{id} for PID #{process.pid}"
-	return id
+  logger.debug "Found chrome subprocess PGID #{id} for PID #{process.pid}"
+  return id
       else
-	raise ChromeProcessError.new "Subprocess PGID not found"
+  raise ChromeProcessError.new "Subprocess PGID not found"
       end
     end
 
