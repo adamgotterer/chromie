@@ -55,13 +55,11 @@ module Chromie
 	"--safebrowsing-disable-auto-update"
       }
 
-      #cmd = "setsid sh /app/scripts/run.sh /usr/bin/google-chrome " + default_args.join(" ")
       cmd = "setsid /usr/bin/google-chrome " + default_args.join(" ")
-      #cmd = "/usr/bin/google-chrome " + default_args.join(" ")
 
       puts cmd
 
-      # Note: I'm not entirely sure why the Chrome process is writting 
+      # Note: I'm not entirely sure why the Chrome process is writing 
       #  the successful server creation to the error stream
       process = Process.new(cmd, shell: true, output: output, error: output)
 
@@ -81,7 +79,7 @@ module Chromie
     #  process exits and causes the sub processes to be orphaned. If you kill the PGID
     #  then every running instance of chrome is terminated. Above this code you will
     #  see tha the command to run chrome calls setsid which forces all the sub processes
-    #  to run in a new session and share the same group id. Unfortuantely the parent
+    #  to run in a new session and share the same group id. Unfortunately the parent
     #  process still runs in PGID 1. So this code looks up the first child it finds
     #  based on the parent PID and grabs the group id that was assigned to it. Later
     #  on when we kill the processes we kill the parent id and then the group id.
@@ -105,18 +103,11 @@ module Chromie
     end
 
     def kill
-      # output = IO::Memory.new
-      # Process.run("ps x -o  \"%p %r %a\"", shell: true, output: output)
-      # logger.debug("#kill called ")
-      # logger.debug(output)
-
       logger.debug "Killing chrome process with PID: #{process.pid}"
       process.kill
 
       logger.debug "Killing chrome sub processes with PGID: #{pgid}"
       Process.kill(Signal::TERM, pgid)
-      #Process.run("kill #{pgid}", shell: true)
-      # Process.kill(Signal::TERM, pgid)
 
       ChromeProcessManager.unregister(self)
     end
