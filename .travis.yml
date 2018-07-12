@@ -1,0 +1,24 @@
+sudo: true
+dist: trusty
+language: crystal
+
+branches:
+  only:
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
+
+jobs:
+  include:
+    - stage: build docker image
+      script:
+      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      - crystal build run.cr --release --static || travis_terminate 1
+      - |
+          tags=$(curl -sS "https://api.github.com/repos/GoogleChrome/puppeteer/releases" | jq -r ".[].tag_name")
+
+          for tag in $tags
+          do
+            chromium_revision=$(curl -sS "https://raw.githubusercontent.com/GoogleChrome/puppeteer/$tag/package.json" | jq -r ".puppeteer.chromium_revision")
+            docker build --build-arg CHROMIUM_REVISION=$chromium_revision -t chromie/chromie:$tag .
+            docker push chromie/chromie:$tag
+            docker rmi chromie/chromie:$tag
+          done
