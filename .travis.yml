@@ -13,7 +13,7 @@ jobs:
       - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
       - crystal build run.cr --release --static || travis_terminate 1
       - |
-          tags=$(curl -sS "https://api.github.com/repos/GoogleChrome/puppeteer/releases" | jq -r ".[].tag_name")
+          tags=$(curl -sS "https://api.github.com/repos/GoogleChrome/puppeteer/releases" | jq -r "reverse|.[].tag_name")
 
           for tag in $tags
           do
