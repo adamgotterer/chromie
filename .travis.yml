@@ -5,15 +5,14 @@ language: crystal
 branches:
   only:
     - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
-
 jobs:
   include:
     - stage: build docker image
       script:
       - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-      - crystal build run.cr --release --static || travis_terminate 1
+      - crystal build run.cr --release || travis_terminate 1
       - |
-          tags=$(curl -sS "https://api.github.com/repos/GoogleChrome/puppeteer/releases" | jq -r "reverse|.[].tag_name")
+          tags=$(curl -sS "https://api.github.com/repos/GoogleChrome/puppeteer/releases?access_token=$GITHUB_ACCESS_TOKEN" | jq -r "reverse|.[].tag_name")
 
           for tag in $tags
           do

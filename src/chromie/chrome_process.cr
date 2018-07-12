@@ -55,7 +55,7 @@ module Chromie
         "--safebrowsing-disable-auto-update"
       }
 
-      cmd = "setsid /usr/bin/google-chrome " + default_args.join(" ")
+      cmd = "setsid /bin/google-chrome " + default_args.join(" ")
 
       puts cmd
 
