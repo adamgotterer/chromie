@@ -1,0 +1,30 @@
+sudo: true
+dist: trusty
+
+branches:
+  only:
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
+
+jobs:
+  include:
+    - stage: build docker image
+      script:
+      - repo="chromie/chromie"
+      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      - curl https://dist.crystal-lang.org/apt/setup.sh | sudo bash
+      - sudo update -qqy && sudo apt-get install -y crystal build-essential
+      - crystal build run.cr --release
+      - |
+          tags=$(curl -sS "https://registry.hub.docker.com/v2/repositories/chromie/headless-chrome-puppeteer/tags/" | jq -r '."results"[]["name"]')
+
+          for i in $tags
+          do
+            if [ "$i" = "latest" ]
+            then
+              continue
+            fi
+
+            chromium_revision=$(curl -sS https://raw.githubusercontent.com/GoogleChrome/puppeteer/$i/package.json | jq -r ".puppeteer.chromium_revision")
+            docker build --build-arg CHROMIUM_REVISION=$chromium_revision -t $repo:$i .
+          done
+      - docker push $repo
