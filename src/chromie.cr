@@ -2,14 +2,30 @@ require "http"
 require "logger"
 
 require "kemal"
-
 require "./chromie/*"
 
+module Kemal
+  def self.run(port : Int32?)
+    self.run port do
+      log "[#{config.env}] Chromie is ready to do it's thing at ws://#{config.host_binding}:#{config.port}"
+    end
+  end
+
+  # TODO: Uncomment once kremal is bumped past 0.23.0 and remove the run overload
+  # def self.display_startup_message(config, server)
+    # addresses = server.addresses.map { |address| "ws://#{address}" }.join ", "
+    # log "[#{config.env}] Chromie is ready to do it's thing at #{addresses}"
+  # end
+end
+
 module Chromie
+  Kemal.config.env = "production"
+  Kemal.config.shutdown_message = false
+
   unless ENV.has_key?("CHROMIE_CHROME_PORT_START") && ENV.has_key?("CHROMIE_CHROME_PORT_END")
     ENV["CHROMIE_CHROME_PORT_START"] = "9222"
     ENV["CHROMIE_CHROME_PORT_END"] = "9322"
-    logger.warn "CHROMIE_CHROME_PORT_START and CHROMIE_CHROME_PORT_END aren't 
+    logger.warn "CHROMIE_CHROME_PORT_START and CHROMIE_CHROME_PORT_END aren't
       set, using default ports 9222-9322"
   end
 
@@ -24,7 +40,7 @@ module Chromie
     end
 
     upstream_proxy = UpstreamProxy.new(socket: client_socket, upstream_socket: chrome_proxy.socket)
-            
+
     spawn do
       begin
         chrome_proxy.run
