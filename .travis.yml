@@ -16,8 +16,11 @@ jobs:
 
           for tag in $tags
           do
-            chromium_revision=$(curl -sS "https://raw.githubusercontent.com/GoogleChrome/puppeteer/$tag/package.json" | jq -r ".puppeteer.chromium_revision")
-            docker build --build-arg CHROMIUM_REVISION=$chromium_revision -t chromie/chromie:$tag .
-            docker push chromie/chromie:$tag
-            docker rmi chromie/chromie:$tag
+            if [ "$tag" = "v1.5.0" ]
+            then
+              chromium_revision=$(curl -sS "https://raw.githubusercontent.com/GoogleChrome/puppeteer/$tag/package.json" | jq -r ".puppeteer.chromium_revision")
+              docker build --build-arg CHROMIUM_REVISION=$chromium_revision -t chromie/chromie:$tag .
+              docker push chromie/chromie:$tag
+              docker rmi chromie/chromie:$tag
+            fi
           done
