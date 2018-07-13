@@ -34,7 +34,7 @@ module Chromie
       port_range = ENV["CHROMIE_CHROME_PORT_START"].to_i..ENV["CHROMIE_CHROME_PORT_END"].to_i
       chrome_proxy = ChromeProxy.new(client_socket, port_range)
     rescue ex : ChromeProcessError
-      logger.warn(ex.message)
+      logger.error(ex.message)
       client_socket.close("Chrome process failed to start")
       next false
     end

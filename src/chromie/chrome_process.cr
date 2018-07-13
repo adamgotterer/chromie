@@ -57,16 +57,16 @@ module Chromie
 
       cmd = "setsid /bin/google-chrome " + default_args.join(" ")
 
-      puts cmd
-
       # Note: I'm not entirely sure why the Chrome process is writing
       #  the successful server creation to the error stream
       process = Process.new(cmd, shell: true, output: output, error: output)
 
-      timeout(PROCESS_START_TIMEOUT) do
-        break if output.to_s.includes?("DevTools listening on")
-      rescue ex
-        raise ChromeProcessError.new "Timed out while trying to launch a Chrome instance"
+      begin
+        timeout(PROCESS_START_TIMEOUT) do
+          break if output.to_s.includes?("DevTools listening on")
+        end
+      rescue
+        raise ChromeProcessError.new "Timed out while trying to launch Chrome instance: #{output.to_s}"
       end
 
       logger.debug "Launched chrome process with PID #{process.pid}"
