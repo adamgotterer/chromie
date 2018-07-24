@@ -18,6 +18,8 @@ module Chromie
     end
 
     def kill
+      close_sockets
+
       # Delay is used to give the socket a moment to close
       delay(5) { chrome_process.kill }
     end

@@ -35,7 +35,6 @@ module Chromie
       chrome_proxy = ChromeProxy.new(client_socket, port_range)
     rescue ex : ChromeProcessError
       logger.error(ex.message)
-      client_socket.close("Chrome process failed to start")
       next false
     end
 
@@ -46,8 +45,6 @@ module Chromie
         chrome_proxy.run
       rescue Errno | IO::Error
         logger.debug "chrome_proxy#run threw and exception. Closing sockets."
-        upstream_proxy.close("closed") unless upstream_proxy.closed?
-        chrome_proxy.close("closed") unless chrome_proxy.closed?
         chrome_proxy.kill
       end
     end
@@ -55,14 +52,6 @@ module Chromie
 
   get "/health" do
     "ok"
-  end
-
-  class RouteHandler
-    include HTTP::Handler
-
-    def call(context : HTTP::Server::Context)
-      context.request.inspect
-    end
   end
 
   def self.run
