@@ -10,7 +10,7 @@ module Chromie
 
     @port : Int32 = 0
     @process : Process
-    @pgid : Int16 = 0
+    @pgid : Int32 = 0
     @browser : String
     @protocol_version : String
     @websocket_debugger_url : String
@@ -55,7 +55,7 @@ module Chromie
         "--safebrowsing-disable-auto-update"
       }
 
-      cmd = "setsid /bin/google-chrome " + default_args.join(" ")
+      cmd = "/bin/google-chrome " + default_args.join(" ")
 
       # Note: I'm not entirely sure why the Chrome process is writing
       #  the successful server creation to the error stream
@@ -73,22 +73,13 @@ module Chromie
       process
     end
 
-    # This is a way to more accurately manage Chrome processes. When Chrome launches
-    #  it spawns a buch of sub processes. Because of the Docker PID 1 issue every
-    #  ends up with the same PGID. If you kill the Chrome PID then only the parent
-    #  process exits and causes the sub processes to be orphaned. If you kill the PGID
-    #  then every running instance of chrome is terminated. Above this code you will
-    #  see tha the command to run chrome calls setsid which forces all the sub processes
-    #  to run in a new session and share the same group id. Unfortunately the parent
-    #  process still runs in PGID 1. So this code looks up the first child it finds
-    #  based on the parent PID and grabs the group id that was assigned to it. Later
-    #  on when we kill the processes we kill the parent id and then the group id.
     protected def get_pgid
       pgid_output = IO::Memory.new
       id = 0
       Process.run("pgrep -P #{process.pid}", shell: true, output: pgid_output)
 
-      id = pgid_output.to_s.to_i16
+      id = pgid_output.to_s.to_i32
+
       if id > 0
         logger.debug "Found chrome subprocess PGID #{id} for PID #{process.pid}"
         return id
